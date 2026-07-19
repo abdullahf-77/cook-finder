@@ -1,0 +1,26 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - CONF_THRESH=0.25
+      - MAX_RECIPES=6
+      - ALLOWED_ORIGINS=*
+    restart: unless-stopped
+
+  # Serves the static frontend on http://localhost:8080
+  # Default config.js points at http://localhost:8000, which works out of
+  # the box here since both services publish to localhost on the host.
+  # For a remote/production deployment, open the page with ?api=<backend-url>
+  # or edit config.js before deploying.
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./CookFinder_Website.html:/usr/share/nginx/html/index.html:ro
+      - ./config.js:/usr/share/nginx/html/config.js:ro
+    depends_on:
+      - backend
+    restart: unless-stopped

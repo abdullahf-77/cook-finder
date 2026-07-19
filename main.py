@@ -14,9 +14,10 @@ MODEL_PATH   = os.getenv("MODEL_PATH",   "last.pt")
 RECIPES_PATH = os.getenv("RECIPES_PATH", "recipes.json")
 CONF_THRESH  = float(os.getenv("CONF_THRESH", "0.25"))
 MAX_RECIPES  = int(os.getenv("MAX_RECIPES",   "6"))
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
 app = FastAPI(title="Cook Finder API")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_methods=["*"], allow_headers=["*"])
 
 print("Loading model:", MODEL_PATH)
 model = YOLO(MODEL_PATH)

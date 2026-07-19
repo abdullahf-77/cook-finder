@@ -1,5 +1,10 @@
 # Cook Finder
 
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg)
+![Docker](https://img.shields.io/badge/docker-ready-2496ED.svg)
+
 An ingredient-recognition recipe recommender. Point a camera or upload a
 photo of your ingredients, and Cook Finder detects them with a custom-trained
 YOLO model and suggests matching recipes ranked by how many ingredients you
@@ -26,6 +31,8 @@ Cook Finder is a two-part application:
 - Simple REST API: `/predict`, `/health`, `/classes`
 - Standalone HTML/CSS/JS frontend — no build step required
 - Recipe set spans multiple cuisines (Nepali, Indian, Asian, Western, Arabian, Fusion, and more)
+- Configurable backend URL (query param or `config.js`) and CORS origins — no more hardcoded `localhost`
+- Docker + Docker Compose for one-command local deployment
 
 ## Tech Stack
 
@@ -35,11 +42,12 @@ Cook Finder is a two-part application:
 | ML / CV    | Ultralytics YOLO, OpenCV (headless), NumPy |
 | Frontend   | HTML, CSS, vanilla JavaScript (RTL, Arabic) |
 | Data       | Local JSON recipe database (200 recipes) |
+| Deployment | Docker, Docker Compose, Nginx (static frontend) |
 
 ## Architecture
 
 ```
-Browser (CookFinder_Website.html)
+Browser (CookFinder_Website.html + config.js)
         │  photo upload
         ▼
 FastAPI backend (main.py)
@@ -58,9 +66,16 @@ JSON response: detected ingredients + annotated image + ranked recipes
 CookFinder/
 ├── main.py                  # FastAPI backend + YOLO inference + recipe matching
 ├── CookFinder_Website.html  # Frontend (Arabic, RTL)
+├── config.js                # Frontend runtime config (backend URL)
 ├── recipes.json             # Recipe database (200 recipes)
 ├── last.pt                  # Trained YOLO model weights (87 ingredient classes)
 ├── requirements.txt         # Python dependencies
+├── Dockerfile                # Backend container image
+├── docker-compose.yml        # Backend + static frontend (nginx)
+├── .dockerignore
+├── docs/
+│   └── images/               # Screenshots (see below)
+├── .github/workflows/        # CI: dependency install + import verification
 ├── .gitignore
 ├── LICENSE
 └── README.md
@@ -70,6 +85,7 @@ CookFinder/
 
 - Python 3.9+
 - A modern browser (for the frontend)
+- Docker + Docker Compose (optional, for containerized deployment)
 
 ## Installation
 
@@ -83,12 +99,23 @@ pip install -r requirements.txt
 
 The backend reads optional environment variables (all have sensible defaults):
 
-| Variable       | Default          | Description                              |
-|----------------|-------------------|-------------------------------------------|
-| `MODEL_PATH`   | `last.pt`         | Path to the YOLO weights file             |
-| `RECIPES_PATH` | `recipes.json`    | Path to the recipe database               |
-| `CONF_THRESH`  | `0.25`            | YOLO detection confidence threshold        |
-| `MAX_RECIPES`  | `6`               | Max number of recipes returned per request |
+| Variable          | Default          | Description                              |
+|--------------------|-------------------|-------------------------------------------|
+| `MODEL_PATH`        | `last.pt`         | Path to the YOLO weights file             |
+| `RECIPES_PATH`      | `recipes.json`    | Path to the recipe database               |
+| `CONF_THRESH`       | `0.25`            | YOLO detection confidence threshold        |
+| `MAX_RECIPES`       | `6`               | Max number of recipes returned per request |
+| `ALLOWED_ORIGINS`   | `*`               | Comma-separated list of allowed CORS origins (e.g. `https://cookfinder.example.com,https://app.example.com`) |
+
+The **frontend** is a static page with no build step, so it can't read OS
+environment variables directly. Its backend URL is resolved in this order:
+
+1. `?api=<url>` query parameter (highest priority — handy for quick testing)
+2. `window.COOKFINDER_API_URL` set in `config.js`
+3. `http://localhost:8000` (default, unchanged from before)
+
+To point a deployed frontend at a deployed backend, either edit `config.js`
+before deploying, or share a link with `?api=` baked in.
 
 ## Usage
 
@@ -103,6 +130,21 @@ The backend reads optional environment variables (all have sensible defaults):
    `http://localhost:8000`.
 
 3. Upload or capture a photo of your ingredients and view the matched recipes.
+
+### Running with Docker
+
+```bash
+docker compose up --build
+```
+
+This starts:
+- `backend` — the FastAPI + YOLO service on `http://localhost:8000`
+- `frontend` — the static site served by nginx on `http://localhost:8080`
+
+> The Dockerfile and Compose setup were written to match the existing
+> `requirements.txt`/app layout but have not been build-tested in this
+> environment (no Docker available here) — please verify with
+> `docker compose up --build` before relying on it in production.
 
 ## API Documentation
 
@@ -142,21 +184,28 @@ Returns the full list of ingredient classes the model can detect.
 
 ## Future Improvements
 
-- Make the frontend's backend URL configurable instead of hardcoded `localhost:8000`.
-- Containerize the backend with Docker for easier deployment.
 - Add automated tests for the recipe-matching logic.
 - Serve the frontend and backend from the same origin (or add a small static file route) to avoid CORS entirely.
 - Add pagination/filtering (cuisine, prep time) to the recipe results.
+- Add HTTPS/TLS termination (e.g. Caddy or Traefik) in front of the Docker Compose setup for production.
+- Publish the Docker image to a registry and add a CI job to build/push it.
 
 ## Screenshots
 
-_Add UI screenshots / example detections here._
+### Home page (real screenshot)
 
-```
-docs/
-└── ui_preview.png
-└── detection_example.png
-```
+![Cook Finder home page](docs/images/cookfinder_ui_home.png)
+
+### Still needed (checklist)
+
+I could not generate these without a live camera/photo and a running model
+in this environment. To add them:
+
+| # | Screen to capture | What should be visible | Suggested filename | Where it goes in README |
+|---|---|---|---|---|
+| 1 | After uploading a photo of real ingredients | The annotated image with YOLO bounding boxes around detected ingredients | `docs/images/detection_result.png` | Under "Home page" above, as a second screenshot |
+| 2 | The recipe results list/cards | 3–6 matched recipe cards with names, match %, and ingredients | `docs/images/recipe_results.png` | New "Recipe Results" subsection under Screenshots |
+| 3 | A recipe detail modal open | Full ingredient list + preparation steps for one recipe | `docs/images/recipe_detail.png` | Same subsection as above |
 
 ## License
 

@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.git/
+.github/
+docs/
+*.md
+CookFinder_Website.html
+config.js
